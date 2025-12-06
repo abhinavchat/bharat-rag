@@ -1,0 +1,62 @@
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.localized
+
+# Build artifacts
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.orig
+*.rej
+*.dump
+*.iml
+*.iws
+*.ipr
+*.class
+*.pyc
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.ncb
+*.suo
+*.user
+*.aps
+*.pdb
+*.ilk
+*.idb
+*.opt
+*.exp
+*.map
+*.res
+*.sbr
+*.pch
+*.pyd
+
+# Dependencies
+node_modules/
+vendor/
+target/
+build/
+dist/
+
+# Editor/IDE specific files
+.idea/
+.vscode/
+*.sublime-workspace
+*.code-workspace
+.project
+.classpath
+.settings/
+
+# Environment variables
+.env
+.env.*
