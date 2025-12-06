@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/*]
   pull_request:
     branches: [main]
 
@@ -14,6 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Sanity check
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
         run: |
-          echo "CI is configured. Add lint/tests as code is introduced."
+          python -m pip install --upgrade pip
+          pip install uv
+
+      - name: Install dependencies
+        run: |
+          uv sync --dev
+
+      - name: Run tests
+        run: |
+          uv run pytest
