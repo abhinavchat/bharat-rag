@@ -37,6 +37,11 @@ def test_video_handler_file_not_found():
     except ImportError:
         pytest.skip("Video processing dependencies not installed")
 
+    # Check if ffmpeg is available
+    import shutil
+    if shutil.which("ffmpeg") is None:
+        pytest.skip("ffmpeg is not installed")
+
     handler = VideoIngestionHandler()
 
     with pytest.raises(FileNotFoundError, match="Video file not found"):
