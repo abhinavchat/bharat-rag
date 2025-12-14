@@ -4,7 +4,7 @@
 
 The project has two main goals:
 
-1. Define the **Bharat-RAG Protocol (BRP)** for ingestion and retrieval.
+1. Define the **Bharat-RAG Protocol (BRP)** for ingestion and retrieval ([See the specification in detail](docs/PRD.md).).
 2. Provide a **lightweight reference implementation** that can run:
    - on a single laptop (individual users)
    - on-prem / government / enterprise clusters (India-scale)
