@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
-from bharatrag.api.main import app
+
+from bharatrag.main import app
 
 
 def test_healthz() -> None:

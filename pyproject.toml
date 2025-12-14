@@ -9,7 +9,14 @@ authors = [
     {name = "Abhinav Chaturvedi", email = "abhinav.c@live.in"},
 ]
 dependencies = [
+    "alembic>=1.17.2",
     "fastapi>=0.123.10",
+    "psycopg2-binary>=2.9.11",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "python-json-logger>=4.0.0",
+    "sqlalchemy>=2.0.45",
+    "sqlmodel>=0.0.27",
     "uvicorn>=0.38.0",
 ]
 
@@ -17,6 +24,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.1",
+    "ruff>=0.14.9",
 ]
 
 [build-system]
@@ -28,3 +36,17 @@ packages = ["src/bharatrag"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+# "I" enables import sorting (isort rules)
+select = ["I"]
+
+# Optional but nice:
+# select = ["I", "F"]  # also removes unused imports, etc.
+
+[tool.ruff.lint.isort]
+known-first-party = ["bharatrag"]
+combine-as-imports = true
