@@ -4,6 +4,8 @@ from fastapi import FastAPI
 
 from bharatrag.api.health import router as health_router
 from bharatrag.api.collections import router as collections_router
+from bharatrag.api.jobs import router as jobs_router
+from bharatrag.api.ingest import router as ingest_router
 from bharatrag.core.config import get_settings
 from bharatrag.core.logging_config import setup_logging
 
@@ -22,6 +24,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(collections_router)
+    app.include_router(jobs_router)
+    app.include_router(ingest_router)
     logging.getLogger(__name__).info("Application started")
     return app
 

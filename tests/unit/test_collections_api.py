@@ -1,5 +1,6 @@
 import os
 from fastapi.testclient import TestClient
+import uuid
 
 from bharatrag.main import app
 
@@ -15,10 +16,11 @@ def test_create_and_get_collection():
     client = TestClient(app)
 
     # Create
-    r = client.post("/collections", json={"name": "weekend-1"})
+    name = f"weekend-1-{uuid.uuid4()}"
+    r = client.post("/collections", json={"name": name})
     assert r.status_code == 201, r.text
     created = r.json()
-    assert created["name"] == "weekend-1"
+    assert created["name"] == name
     assert "id" in created
 
     # Fetch
@@ -27,4 +29,4 @@ def test_create_and_get_collection():
     assert r2.status_code == 200, r2.text
     fetched = r2.json()
     assert fetched["id"] == cid
-    assert fetched["name"] == "weekend-1"
+    assert fetched["name"] == name
