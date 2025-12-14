@@ -4,6 +4,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from pythonjsonlogger.json import JsonFormatter
+from bharatrag.core.context import (
+    get_request_id,
+    get_job_id,
+    get_collection_id,
+    get_document_id,
+)
 
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)s | %(name)s | %(message)s | "
@@ -13,10 +19,11 @@ LOG_FORMAT = (
 
 class ContextFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = getattr(record, "request_id", "-")
-        record.job_id = getattr(record, "job_id", "-")
-        record.collection_id = getattr(record, "collection_id", "-")
-        record.document_id = getattr(record, "document_id", "-")
+        # Try to get from context vars first, then from extra dict, then default
+        record.request_id = get_request_id() or getattr(record, "request_id", None) or "-"
+        record.job_id = get_job_id() or getattr(record, "job_id", None) or "-"
+        record.collection_id = get_collection_id() or getattr(record, "collection_id", None) or "-"
+        record.document_id = get_document_id() or getattr(record, "document_id", None) or "-"
         return True
 
 class BharatJsonFormatter(JsonFormatter):

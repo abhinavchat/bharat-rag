@@ -1,13 +1,14 @@
 services:
-  postgres:
-    image: postgres:16
+  db:
+    image: pgvector/pgvector:0.7.4-pg16
     environment:
-      POSTGRES_DB: bharatrag
       POSTGRES_USER: bharatrag
       POSTGRES_PASSWORD: bharatrag
+      POSTGRES_DB: bharatrag
     ports:
       - "5432:5432"
     volumes:
-      - bharatrag_pgdata:/var/lib/postgresql/data
+      - bharatrag_pg:/var/lib/postgresql/data
+
 volumes:
-  bharatrag_pgdata:
+  bharatrag_pg:

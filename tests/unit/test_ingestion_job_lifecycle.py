@@ -32,6 +32,7 @@ def test_ingestion_job_lifecycle():
             "collection_id": collection_id,
             "source_type": "file",
             "format": "txt",
+            "uri": "Test document content for ingestion job lifecycle test.",
         },
     )
     assert r_job.status_code == 201, r_job.text
