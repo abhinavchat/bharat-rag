@@ -15,8 +15,11 @@ from bharatrag.services.chunking.simple_chunker import SimpleChunker
 from bharatrag.services.embeddings.simple_hash_embedder import SimpleHashEmbedder
 from bharatrag.core.context import set_job_id, set_collection_id, set_document_id
 from bharatrag.ports.ingestion_handler import IngestionHandler
+from bharatrag.services.ingestion_handlers.image_handler import ImageIngestionHandler
 from bharatrag.services.ingestion_handlers.pdf_handler import PdfIngestionHandler
 from bharatrag.services.ingestion_handlers.text_handler import TextIngestionHandler
+from bharatrag.services.ingestion_handlers.video_handler import VideoIngestionHandler
+from bharatrag.services.ingestion_handlers.website_handler import WebsiteIngestionHandler
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,9 @@ class IngestionService:
         self.handlers: list[IngestionHandler] = handlers or [
             PdfIngestionHandler(),
             TextIngestionHandler(),
+            ImageIngestionHandler(),
+            VideoIngestionHandler(),
+            WebsiteIngestionHandler(),
         ]
 
     def ingest(self, payload: IngestionJobCreate) -> IngestionJob:
