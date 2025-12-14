@@ -7,13 +7,42 @@ from uuid import UUID
 
 JobStatus = Literal["PENDING", "RUNNING", "COMPLETED", "FAILED", "PARTIAL", "CANCELED"]
 
+# v0.1 protocol-friendly vocab (expand later)
+SourceType = Literal["file", "text", "url"]
+DocFormat = Literal[
+    "txt", "md", "pdf",
+    "docx",
+    "png", "jpg", "jpeg",
+    "html",
+    "mp4"
+]
+
 
 class IngestionJobCreate(BaseModel):
-    collection_id: UUID
-    source_type: str = Field(min_length=1, max_length=32)
-    format: str = Field(min_length=1, max_length=32)
-    # Optional: if you create Document upfront; otherwise set later
-    document_id: Optional[UUID] = None
+    collection_id: UUID = Field(
+            ...,
+            description="Target collection for this ingestion job. Create one via POST /collections first.",
+            examples=["11111111-1111-1111-1111-111111111111"],
+        )
+    
+    source_type: SourceType = Field(
+        ...,
+        description="Where the content comes from.",
+        examples=["file"],
+    )
+    
+    format: DocFormat = Field(
+        ...,
+        description="Content format (used to pick the right ingestor).",
+        examples=["txt"],
+    )
+
+    uri: Optional[str] = Field(
+        default=None,
+        max_length=2048,
+        description="Optional URI for the source (file://, https://, s3:// etc).",
+        examples=["file://notes.txt"],
+    )
 
 
 class IngestionJob(BaseModel):
@@ -21,12 +50,12 @@ class IngestionJob(BaseModel):
 
     id: UUID
     collection_id: UUID
-    document_id: Optional[UUID]
-    source_type: str
-    format: str
+    document_id: Optional[UUID] = None
+    source_type: SourceType
+    format: DocFormat
     status: JobStatus
-    progress: Dict[str, Any]
-    error_summary: Optional[str]
+    progress: Dict[str, Any] = Field(default_factory=dict)
+    error_summary: Optional[str] = None
     created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None

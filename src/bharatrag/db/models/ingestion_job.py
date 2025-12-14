@@ -7,6 +7,11 @@ from bharatrag.db.base import Base
 
 
 class IngestionJobModel(Base):
+    # NOTE:
+    # DB-level CHECK / ENUM constraints for status, source_type, format
+    # intentionally deferred until ingestion protocol stabilizes.
+    # Planned for Weekend-4/5.
+
     __tablename__ = "ingestion_jobs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

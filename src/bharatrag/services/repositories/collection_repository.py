@@ -31,6 +31,10 @@ class CollectionRepository:
             if obj is None:
                 return None
             return Collection.model_validate(obj)
+    
+    def get_by_id(self, collection_id: UUID) -> CollectionModel | None:
+        with self._session_factory() as session:
+            return session.get(CollectionModel, collection_id)
 
     def list(self, limit: int = 50, offset: int = 0) -> list[Collection]:
         with self._session_factory() as session:
