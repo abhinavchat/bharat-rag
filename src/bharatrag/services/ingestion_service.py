@@ -3,7 +3,7 @@ from pathlib import Path
 from uuid import UUID
 
 from bharatrag.domain.ingestion_job import IngestionJob, IngestionJobCreate
-from bharatrag.domain.document import DocumentCreate
+from bharatrag.domain.document import Document, DocumentCreate
 from bharatrag.domain.chunk import ChunkCreate
 
 from bharatrag.services.repositories.ingestion_job_repository import IngestionJobRepository
@@ -14,6 +14,9 @@ from bharatrag.services.repositories.collection_repository import CollectionRepo
 from bharatrag.services.chunking.simple_chunker import SimpleChunker
 from bharatrag.services.embeddings.simple_hash_embedder import SimpleHashEmbedder
 from bharatrag.core.context import set_job_id, set_collection_id, set_document_id
+from bharatrag.ports.ingestion_handler import IngestionHandler
+from bharatrag.services.ingestion_handlers.pdf_handler import PdfIngestionHandler
+from bharatrag.services.ingestion_handlers.text_handler import TextIngestionHandler
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +28,7 @@ class IngestionService:
         document_repo: DocumentRepository | None = None,
         chunk_repo: ChunkRepository | None = None,
         collection_repo: CollectionRepository | None = None,
+        handlers: list[IngestionHandler] | None = None,
     ):
         self.repo = repo or IngestionJobRepository()
         self.document_repo = document_repo or DocumentRepository()
@@ -33,6 +37,12 @@ class IngestionService:
 
         self.chunker = SimpleChunker()
         self.embedder = SimpleHashEmbedder()
+        
+        # Register format handlers
+        self.handlers: list[IngestionHandler] = handlers or [
+            PdfIngestionHandler(),
+            TextIngestionHandler(),
+        ]
 
     def ingest(self, payload: IngestionJobCreate) -> IngestionJob:
         # Request validation BEFORE job creation
@@ -51,9 +61,20 @@ class IngestionService:
         try:
             job = self.repo.update_status(job.id, "RUNNING")
             # self._validate(payload)
-            self._store_raw(payload, job.id)
-            job = self.repo.update_status(job.id, "COMPLETED", progress={"stage": "persisted"})
-            logger.info("Ingestion job completed")
+            result = self._store_raw(payload, job.id)
+            
+            # Determine final status based on result
+            if result.get("status") == "PARTIAL":
+                job = self.repo.update_status(
+                    job.id,
+                    "PARTIAL",
+                    progress={"stage": "persisted", **result.get("progress", {})},
+                    error_summary=result.get("error_summary"),
+                )
+                logger.warning("Ingestion job completed with partial success", extra={"failed_pages": result.get("failed_pages", [])})
+            else:
+                job = self.repo.update_status(job.id, "COMPLETED", progress={"stage": "persisted"})
+                logger.info("Ingestion job completed")
             return job
         except Exception as exc:
             logger.exception("Ingestion job failed")
@@ -81,7 +102,17 @@ class IngestionService:
         if not payload.source_type or not payload.format:
             raise ValueError("Invalid ingestion payload")
 
-    def _store_raw(self, payload: IngestionJobCreate, job_id: UUID) -> None:
+    def _store_raw(self, payload: IngestionJobCreate, job_id: UUID) -> dict:
+        """
+        Store raw content using appropriate handler.
+        
+        Returns:
+            dict with status information:
+            - status: "COMPLETED" or "PARTIAL"
+            - progress: Additional progress info
+            - error_summary: Error details if partial
+            - failed_pages: List of failed page numbers (for PDFs)
+        """
         # 1) Create document row first
         document = self.document_repo.create(
             DocumentCreate(
@@ -96,7 +127,175 @@ class IngestionService:
         self.repo.update_status(job_id, "RUNNING", progress={"stage": "document_created"})
         logger.info("Document created")
 
-        # 2) Load text (Weekend-3 stub)
+        # 2) Get appropriate handler
+        handler = self._get_handler(payload.format, payload.source_type)
+        
+        if handler:
+            logger.debug(
+                "Using handler for extraction",
+                extra={"format": payload.format, "source_type": payload.source_type},
+            )
+            return self._process_with_handler(handler, payload, document, job_id)
+        else:
+            # Fallback to legacy text loading
+            logger.debug("No handler found, using legacy text loading")
+            return self._process_legacy_text(payload, document, job_id)
+
+    def _get_handler(self, format: str, source_type: str) -> IngestionHandler | None:
+        """Find handler that supports the given format and source_type."""
+        for handler in self.handlers:
+            if handler.supports(format, source_type):
+                return handler
+        return None
+
+    def _process_with_handler(
+        self,
+        handler: IngestionHandler,
+        payload: IngestionJobCreate,
+        document: Document,
+        job_id: UUID,
+    ) -> dict:
+        """Process ingestion using a format-specific handler."""
+        # Extract text and metadata from handler
+        extracted_pages = handler.extract_text(payload.uri)
+        
+        total_pages = len(extracted_pages)
+        failed_pages: list[int] = []
+        successful_chunks = 0
+        
+        logger.info(
+            "Content extracted by handler",
+            extra={
+                "format": payload.format,
+                "total_pages": total_pages,
+            },
+        )
+        
+        # Process each extracted page/text segment
+        all_chunks: list[tuple[str, dict]] = []
+        
+        for page_idx, (text, page_metadata) in enumerate(extracted_pages):
+            # Update progress for PDFs
+            if payload.format == "pdf" and "page_number" in page_metadata:
+                page_num = page_metadata.get("page_number", page_idx + 1)
+                self.repo.update_status(
+                    job_id,
+                    "RUNNING",
+                    progress={
+                        "stage": "extracting",
+                        "current_page": page_num,
+                        "total_pages": page_metadata.get("total_pages", total_pages),
+                        "pages_processed": page_idx + 1,
+                    },
+                )
+                logger.debug(
+                    "Processing PDF page",
+                    extra={
+                        "page_number": page_num,
+                        "text_length": len(text),
+                    },
+                )
+            
+            # Track failed pages (empty text with error metadata)
+            if not text and page_metadata.get("extraction_error"):
+                failed_pages.append(page_metadata.get("page_number", page_idx + 1))
+                logger.warning(
+                    "Skipping failed page",
+                    extra={
+                        "page_number": page_metadata.get("page_number"),
+                        "error": page_metadata.get("extraction_error"),
+                    },
+                )
+                continue
+            
+            # Chunk this page's text
+            chunks = self.chunker.chunk(text)
+            for chunk_idx, (_, chunk_text) in enumerate(chunks):
+                if chunk_text:
+                    # Merge page metadata with chunk info
+                    chunk_metadata = {
+                        **page_metadata,
+                        "chunk_index_in_page": chunk_idx,
+                    }
+                    all_chunks.append((chunk_text, chunk_metadata))
+        
+        if not all_chunks:
+            # No valid chunks extracted
+            if failed_pages:
+                return {
+                    "status": "PARTIAL",
+                    "progress": {"failed_pages": failed_pages, "total_pages": total_pages},
+                    "error_summary": f"All pages failed extraction. Failed pages: {failed_pages}",
+                    "failed_pages": failed_pages,
+                }
+            else:
+                return {
+                    "status": "COMPLETED",
+                    "progress": {},
+                    "error_summary": None,
+                    "failed_pages": [],
+                }
+        
+        # Update progress
+        self.repo.update_status(
+            job_id, "RUNNING", progress={"stage": "chunked", "chunks": len(all_chunks)}
+        )
+        logger.info("Content chunked", extra={"chunk_count": len(all_chunks)})
+
+        # 4) Embed all chunks
+        chunk_texts = [chunk for chunk, _ in all_chunks]
+        embeddings = self.embedder.embed(chunk_texts)
+        self.repo.update_status(job_id, "RUNNING", progress={"stage": "embedded"})
+        logger.info("Chunks embedded", extra={"embedding_count": len(embeddings)})
+
+        # 5) Persist chunks with metadata
+        rows: list[ChunkCreate] = []
+        for chunk_idx, ((chunk_text, chunk_metadata), embedding) in enumerate(zip(all_chunks, embeddings)):
+            rows.append(
+                ChunkCreate(
+                    document_id=document.id,
+                    collection_id=document.collection_id,
+                    chunk_index=chunk_idx,
+                    text=chunk_text,
+                    embedding=embedding,
+                    extra_metadata=chunk_metadata,
+                )
+            )
+            successful_chunks += 1
+
+        if rows:
+            self.chunk_repo.bulk_create(rows)
+            logger.info("Chunks persisted", extra={"chunk_count": len(rows)})
+        
+        # Determine status
+        result: dict = {
+            "status": "COMPLETED",
+            "progress": {},
+            "error_summary": None,
+            "failed_pages": [],
+        }
+        
+        if failed_pages and successful_chunks > 0:
+            # Partial success: some pages failed but we have chunks
+            result["status"] = "PARTIAL"
+            result["progress"] = {
+                "failed_pages": failed_pages,
+                "total_pages": total_pages,
+                "successful_chunks": successful_chunks,
+            }
+            result["error_summary"] = f"Some pages failed extraction. Failed pages: {failed_pages}"
+            result["failed_pages"] = failed_pages
+        
+        return result
+
+    def _process_legacy_text(
+        self,
+        payload: IngestionJobCreate,
+        document: Document,
+        job_id: UUID,
+    ) -> dict:
+        """Legacy text processing for formats without handlers."""
+        # 2) Load text (Weekend-3 fallback)
         text = self._load_text(payload.uri)
 
         # 3) Chunk
@@ -136,6 +335,13 @@ class IngestionService:
         if rows:
             self.chunk_repo.bulk_create(rows)
             logger.info("Chunks persisted", extra={"chunk_count": len(rows)})
+        
+        return {
+            "status": "COMPLETED",
+            "progress": {},
+            "error_summary": None,
+            "failed_pages": [],
+        }
 
     def _load_text(self, uri: str | None) -> str:
         logger.debug("Loading text from URI", extra={"uri_length": len(uri) if uri else 0})
