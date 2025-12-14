@@ -5,6 +5,13 @@ FROM python:3.12-slim AS base
 # Set a non-root user later if you want; for now root is okay for dev/demo
 WORKDIR /app
 
+# Install system dependencies required for Weekend 5 features
+# - ffmpeg: Required for moviepy to extract audio from videos
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 RUN pip install --no-cache-dir uv
 
@@ -20,4 +27,4 @@ ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Default command: run the FastAPI app with uvicorn
-CMD ["uvicorn", "bharatrag.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "bharatrag.main:app", "--host", "0.0.0.0", "--port", "8000"]
