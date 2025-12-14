@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from bharatrag.services.repositories.chunk_repository import ChunkRepository
-from bharatrag.services.embeddings.simple_hash_embedder import SimpleHashEmbedder
+from bharatrag.services.embedding_service import EmbeddingService
 from bharatrag.domain.chunk import ChunkSearchResult
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class RetrievalService:
     def __init__(self, chunk_repo: ChunkRepository | None = None):
         self.chunk_repo = chunk_repo or ChunkRepository()
-        self.embedder = SimpleHashEmbedder()
+        self.embedder = EmbeddingService()  # Use semantic embeddings instead of hash-based
 
     def query(self, *, collection_id, query: str, top_k: int = 5) -> list[ChunkSearchResult]:
         logger.debug(

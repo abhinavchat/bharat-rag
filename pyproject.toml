@@ -26,6 +26,8 @@ dependencies = [
     "sentence-transformers>=5.2.0",
     "sqlalchemy>=2.0.45",
     "sqlmodel>=0.0.27",
+    "torch>=2.0.0",
+    "transformers>=4.40.0",
     "trafilatura>=1.6.0",
     "uvicorn>=0.38.0",
 ]

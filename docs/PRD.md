@@ -22,7 +22,7 @@ The system prioritizes **sovereignty, portability, efficiency, and architectural
 Enable individuals, organizations, and public institutions in India to:
 
 * build **private, local, or sovereign knowledge systems**
-* ingest heterogeneous data formats (text, documents, media, 3D, web)
+* ingest heterogeneous data formats (text, documents, media, web)
 * retrieve and answer queries transparently
 * interoperate across implementations via a common protocol
 
@@ -215,7 +215,7 @@ Returns a complete, implementation-independent view of progress and errors.
 | Kind        | Examples                    |
 | ----------- | --------------------------- |
 | inline_text | txt, md                     |
-| file_ref    | pdf, docx, image, video, 3d |
+| file_ref    | pdf, docx, image, video     |
 | url         | website                     |
 | media       | video/audio                 |
 
@@ -282,7 +282,7 @@ Each format has its own handler implementing a shared interface.
 | Image           | OCR                              |
 | Video           | Audio transcription              |
 | Website         | Article extraction               |
-| 3D              | Metadata + preview + description |
+| 3D              | _Postponed to future release_    |
 
 ---
 

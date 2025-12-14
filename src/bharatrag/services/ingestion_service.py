@@ -11,8 +11,8 @@ from bharatrag.services.repositories.document_repository import DocumentReposito
 from bharatrag.services.repositories.chunk_repository import ChunkRepository
 from bharatrag.services.repositories.collection_repository import CollectionRepository
 
-from bharatrag.services.chunking.simple_chunker import SimpleChunker
-from bharatrag.services.embeddings.simple_hash_embedder import SimpleHashEmbedder
+from bharatrag.services.chunking.sentence_chunker import SentenceChunker
+from bharatrag.services.embedding_service import EmbeddingService
 from bharatrag.core.context import set_job_id, set_collection_id, set_document_id
 from bharatrag.ports.ingestion_handler import IngestionHandler
 from bharatrag.services.ingestion_handlers.image_handler import ImageIngestionHandler
@@ -38,8 +38,8 @@ class IngestionService:
         self.chunk_repo = chunk_repo or ChunkRepository()
         self.collection_repo = collection_repo or CollectionRepository()
 
-        self.chunker = SimpleChunker()
-        self.embedder = SimpleHashEmbedder()
+        self.chunker = SentenceChunker()  # Use sentence-aware chunking
+        self.embedder = EmbeddingService()  # Use semantic embeddings instead of hash-based
         
         # Register format handlers
         self.handlers: list[IngestionHandler] = handlers or [

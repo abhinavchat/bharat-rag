@@ -37,16 +37,17 @@ The project has two main goals:
 - **Video Ingestion**: Audio extraction and transcription using Whisper
 - **Website Ingestion**: Article extraction from web pages
 - **Retrieval API**: Semantic search with vector similarity
-- **RAG Answering**: Context-aware answers with citations
+- **RAG Answering**: Context-aware answers with citations (local LLM support)
+- **Local LLM Integration**: Hugging Face transformers-based local LLM (no external APIs)
 - **Job Tracking**: Async ingestion with progress monitoring
 - **Observability**: Request-scoped logging with context tracking
 
 ### 🚧 Planned
 
-- 3D asset ingestion
 - Advanced chunking strategies
 - Multi-tenant support
 - Dashboard UI
+- 3D asset ingestion (future)
 
 ---
 
@@ -93,7 +94,25 @@ The project has two main goals:
    uv run alembic upgrade head
    ```
 
-5. **Start the server**
+5. **Configure LLM (Optional)**
+   
+   By default, Bharat-RAG uses a simple extractive LLM. To use a local Hugging Face model:
+   
+   ```bash
+   # Use local LLM (runs models directly, no external APIs)
+   export BHARATRAG_LLM_BACKEND=local
+   export BHARATRAG_LLM_MODEL_NAME=gpt2  # or any Hugging Face model
+   export BHARATRAG_LLM_DEVICE=cpu  # or 'cuda' if GPU available
+   ```
+   
+   **Recommended Models:**
+   - `gpt2` - Very small, fast, good for testing (default)
+   - `microsoft/DialoGPT-small` - Small conversational model
+   - `TinyLlama/TinyLlama-1.1B-Chat-v1.0` - Instruction-tuned, better quality (requires more memory)
+   
+   **Note:** Models are downloaded from Hugging Face on first use. Ensure you have sufficient disk space (models can be 500MB-2GB+).
+
+6. **Start the server**
    ```bash
    uv run uvicorn bharatrag.main:app --reload
    ```
@@ -166,6 +185,44 @@ curl -X POST "http://localhost:8000/answer" \
     "top_k": 5
   }'
 ```
+
+---
+
+## Configuration
+
+### LLM Backend Configuration
+
+Bharat-RAG supports two LLM backends:
+
+1. **Extractive LLM (Default)**: Simple, deterministic fallback that extracts and summarizes context
+2. **Local LLM**: Uses Hugging Face transformers to run models locally (no external APIs)
+
+**Environment Variables:**
+
+```bash
+# LLM Backend Selection
+BHARATRAG_LLM_BACKEND=local  # or 'extractive' (default)
+
+# Local LLM Settings (only used when LLM_BACKEND=local)
+BHARATRAG_LLM_MODEL_NAME=gpt2  # Hugging Face model identifier
+BHARATRAG_LLM_DEVICE=cpu  # 'cpu' or 'cuda' (for GPU)
+BHARATRAG_LLM_MAX_LENGTH=512  # Maximum generation length
+BHARATRAG_LLM_TEMPERATURE=0.7  # Generation temperature (0.0-2.0)
+```
+
+**Recommended Models:**
+
+| Model | Size | Quality | Use Case |
+|-------|------|---------|----------|
+| `gpt2` | ~500MB | Basic | Testing, development |
+| `microsoft/DialoGPT-small` | ~500MB | Good | Conversational Q&A |
+| `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | ~2GB | Better | Production (if resources allow) |
+
+**Note:** 
+- Models are downloaded from Hugging Face on first use
+- Ensure sufficient disk space (500MB-2GB+ depending on model)
+- CPU inference can be slow; GPU recommended for better performance
+- All processing is local - no external API calls
 
 ---
 
